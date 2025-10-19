@@ -1,0 +1,102 @@
+#/bin/bash
+
+sudo apt-get update
+sudo apt-get install -y build-essential git cmake ninja-build zlib1g-dev libsecp256k1-dev libmicrohttpd-dev libsodium-dev liblz4-dev libjemalloc-dev ccache
+
+with_tests=false
+with_artifacts=false
+with_ccache=false
+
+while getopts 'tac' flag; do
+  case "${flag}" in
+    t) with_tests=true ;;
+    a) with_artifacts=true ;;
+    c) with_ccache=true ;;
+    *) break
+       ;;
+  esac
+done
+
+if [ "$with_ccache" = true ]; then
+  mkdir -p ~/.ccache
+  export CCACHE_DIR=~/.ccache
+  ccache -M 0
+  test $? -eq 0 || { echo "ccache not installed"; exit 1; }
+else
+  export CCACHE_DISABLE=1
+fi
+
+if [ ! -d "build" ]; then
+  mkdir build
+  cd build
+else
+  cd build
+  rm -rf .ninja* CMakeCache.txt
+fi
+
+export CC=$(which clang-16)
+export CXX=$(which clang++-16)
+
+if [ ! -d "../openssl_3" ]; then
+  git clone https://github.com/openssl/openssl ../openssl_3
+  cd ../openssl_3
+  opensslPath=`pwd`
+  git checkout openssl-3.1.4
+  ./config
+  make build_libs -j$(nproc)
+  test $? -eq 0 || { echo "Can't compile openssl_3"; exit 1; }
+  cd ../build
+else
+  opensslPath=$(pwd)/../openssl_3
+  echo "Using compiled openssl_3"
+fi
+
+cmake -GNinja -DTON_USE_JEMALLOC=ON .. \
+-DCMAKE_BUILD_TYPE=Release \
+-DOPENSSL_ROOT_DIR=$opensslPath \
+-DOPENSSL_INCLUDE_DIR=$opensslPath/include \
+-DOPENSSL_CRYPTO_LIBRARY=$opensslPath/libcrypto.so \
+-DEMULATOR_STATIC=1
+
+
+test $? -eq 0 || { echo "Can't configure ton"; exit 1; }
+
+ninja emulator tolkfiftlib
+test $? -eq 0 || { echo "Can't compile ton"; exit 1; }
+
+emulator_deps=$(ninja -n -v emulator | tr ' ' '\n' | grep '\.a$' | sort -u)
+
+rm -f libemulator.a
+{
+  echo "create libemulator.a"
+  echo "addlib emulator/libemulator_static.a"
+  echo "addlib emulator/libemulator.a"
+  for a in $emulator_deps; do
+    echo "addlib $a"
+  done
+  if [ -f /usr/lib/x86_64-linux-gnu/libsodium.a ]; then echo "addlib /usr/lib/x86_64-linux-gnu/libsodium.a"; fi
+  if [ -f "$OPENSSL_CRYPTO_A" ]; then echo "addlib $OPENSSL_CRYPTO_A"; fi
+  if [ -f /usr/lib/x86_64-linux-gnu/libz.a ]; then echo "addlib /usr/lib/x86_64-linux-gnu/libz.a"; fi
+  echo "save"
+  echo "end"
+} | llvm-ar -M
+ranlib libemulator.a
+
+rm -f libtolk.a
+/usr/lib/llvm-16/bin/llvm-objcopy \
+  --redefine-sym version=tolk_version \
+  tolk/libtolkfiftlib.a \
+  libtolk.a
+
+cd ..
+
+if [ "$with_artifacts" = true ]; then
+  echo Creating artifacts...
+  rm -rf artifacts
+  mkdir artifacts
+  cp build/libemulator.a artifacts/
+  cp build/libtolk.a artifacts/
+  cp -r crypto/smartcont/tolk-stdlib artifacts/tolk-stdlib
+  cp -r crypto/fift/lib artifacts/fift-stdlib
+  chmod -R +x artifacts/*
+fi
