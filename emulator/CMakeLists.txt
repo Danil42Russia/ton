@@ -7,6 +7,7 @@ set(EMULATOR_STATIC_SOURCE
 
 set(EMULATOR_SOURCE
   emulator-extern.cpp
+  emulator-emscripten.cpp
 )
 
 set(EMULATOR_EMSCRIPTEN_SOURCE

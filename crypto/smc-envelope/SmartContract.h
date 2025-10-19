@@ -73,6 +73,8 @@ class SmartContract : public td::CntObject {
     td::optional<vm::Dictionary> libraries;
     td::optional<td::Ref<vm::Tuple>> prev_blocks_info;
 
+    td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods = {};
+
     Args() {
     }
     Args(std::initializer_list<vm::StackEntry> stack)
@@ -88,6 +90,10 @@ class SmartContract : public td::CntObject {
     }
     Args&& set_method_id(td::int32 method_id) {
       this->method_id = method_id;
+      return std::move(*this);
+    }
+    Args&& set_ext_methods(const td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>>& ext_methods) {
+      this->ext_methods = ext_methods;
       return std::move(*this);
     }
     Args&& set_limits(vm::GasLimits limits) {

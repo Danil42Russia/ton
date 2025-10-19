@@ -101,6 +101,18 @@ void *emulator_config_create(const char *config_params_boc) {
   return new block::Config(config.move_as_ok());
 }
 
+const char *transaction_emulator_register_extmethod(void* transaction_emulator, int id, void* ctx, ext_func callback) {
+  auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
+  emulator->ext_methods.emplace(id, std::make_pair(ctx, callback));
+  return "Registered external function";
+}
+
+const char *tvm_emulator_register_extmethod(void* transaction_emulator, int id, void* ctx, ext_func callback) {
+  auto emulator = static_cast<emulator::TvmEmulator *>(transaction_emulator);
+  emulator->ext_methods.emplace(id, std::make_pair(ctx, callback));
+  return "Registered external function";
+}
+
 const char *transaction_emulator_emulate_transaction(void *transaction_emulator, const char *shard_account_boc, const char *message_boc) {
   auto emulator = static_cast<emulator::TransactionEmulator *>(transaction_emulator);
   

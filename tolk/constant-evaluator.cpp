@@ -184,6 +184,11 @@ static CompileTimeFunctionResult parse_vertex_call_to_compile_time_function(V<as
   if (auto as_string = v_arg->try_as<ast_string_const>()) {
     str = as_string->str_val;
   } else {
+    if (f_name == "__typeName") {
+      auto type_name = v_arg->inferred_type->as_human_readable();
+      return td::BitSlice{reinterpret_cast<const unsigned char*>(type_name.c_str()), static_cast<unsigned>(type_name.length() * 8)}.to_hex();
+    }
+
     // ton(SOME_CONST) is not supported
     // ton(0.05) is not supported (it can't be represented in AST even)
     // stringCrc32(SOME_CONST) / stringCrc32(some_var) also, it's compile-time literal-only

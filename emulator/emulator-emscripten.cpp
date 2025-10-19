@@ -4,6 +4,8 @@
 #include "td/utils/misc.h"
 #include "td/utils/optional.h"
 #include "StringLog.h"
+#include "tvm-emulator.hpp"
+
 #include <iostream>
 #include "crypto/common/bitstring.h"
 
@@ -172,9 +174,9 @@ class NoopLog : public td::LogInterface {
 extern "C" {
 
 void* create_emulator(const char *config, int verbosity) {
-    NoopLog logger;
+    NoopLog* logger = new NoopLog();
 
-    td::log_interface = &logger;
+    td::log_interface = logger;
 
     SET_VERBOSITY_LEVEL(verbosity_NEVER);
     return transaction_emulator_create(config, verbosity);
@@ -192,6 +194,7 @@ void destroy_emulator(void* em) {
 const char *emulate_with_emulator(void* em, const char* libs, const char* account, const char* message, const char* params) {
     StringLog logger;
 
+    const auto old_logger = td::log_interface;
     td::log_interface = &logger;
     SET_VERBOSITY_LEVEL(verbosity_DEBUG);
 
@@ -240,6 +243,8 @@ const char *emulate_with_emulator(void* em, const char* libs, const char* accoun
     }
     free((void*) result);
 
+    td::log_interface = old_logger;
+
     return output;
 }
 
@@ -250,19 +255,27 @@ const char *emulate(const char *config, const char* libs, int verbosity, const c
     return result;
 }
 
-const char *run_get_method(const char *params, const char* stack, const char* config) {
-    StringLog logger;
+void *create_tvm_emulator(const char *params) {
+  StringLog* logger = new StringLog();
 
-    td::log_interface = &logger;
-    SET_VERBOSITY_LEVEL(verbosity_DEBUG);
+  td::log_interface = logger;
+  SET_VERBOSITY_LEVEL(verbosity_DEBUG);
 
+  auto decoded_params_res = decode_get_method_params(params);
+  if (decoded_params_res.is_error()) {
+    return strdup(R"({"fail":true,"message":"Can't decode params"})");
+  }
+  auto decoded_params = decoded_params_res.move_as_ok();
+
+  return tvm_emulator_create(decoded_params.code.c_str(), decoded_params.data.c_str(), decoded_params.verbosity);
+}
+
+const char *run_get_method(void* tvm, const char *params, const char* stack, const char* config) {
     auto decoded_params_res = decode_get_method_params(params);
     if (decoded_params_res.is_error()) {
         return strdup(R"({"fail":true,"message":"Can't decode params"})");
     }
     auto decoded_params = decoded_params_res.move_as_ok();
-
-    auto tvm = tvm_emulator_create(decoded_params.code.c_str(), decoded_params.data.c_str(), decoded_params.verbosity);
 
     if ((decoded_params.libs && !tvm_emulator_set_libraries(tvm, decoded_params.libs.value().c_str())) ||
         !tvm_emulator_set_c7(tvm, decoded_params.address.c_str(), decoded_params.unixtime, decoded_params.balance,
@@ -277,14 +290,12 @@ const char *run_get_method(const char *params, const char* stack, const char* co
 
     auto res = tvm_emulator_run_get_method(tvm, decoded_params.method_id, stack);
 
-    tvm_emulator_destroy(tvm);
-
     const char* output = nullptr;
     {
         td::JsonBuilder jb;
         auto json_obj = jb.enter_object();
         json_obj("output", td::JsonRaw(td::Slice(res)));
-        json_obj("logs", logger.get_string());
+        json_obj("logs", static_cast<StringLog*>(td::log_interface)->get_string());
         json_obj.leave();
         output = strdup(jb.string_builder().as_cslice().c_str());
     }

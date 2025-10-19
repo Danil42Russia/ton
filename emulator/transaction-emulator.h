@@ -20,6 +20,8 @@ class TransactionEmulator {
   td::Ref<vm::Tuple> prev_blocks_info_;
 
 public:
+  td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods;
+
   TransactionEmulator(std::shared_ptr<block::Config> config, int vm_log_verbosity = 0) :
     config_(std::move(config)), libraries_(256), vm_log_verbosity_(vm_log_verbosity),
     unixtime_(0), lt_(0), rand_seed_(td::BitArray<256>::zero()), ignore_chksig_(false), debug_enabled_(false) {

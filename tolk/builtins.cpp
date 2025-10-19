@@ -1554,6 +1554,9 @@ void define_builtins() {
   define_builtin_func("address", {TypeDataUnknown::create()}, TypeDataAddress::create(), nullptr,
                               compile_time_only_function,
                                 FunctionData::flagMarkedAsPure | FunctionData::flagCompileTimeVal);
+  define_builtin_func("__typeName", {TypeDataUnknown::create()}, TypeDataSlice::create(), nullptr,
+                              compile_time_only_function,
+                                FunctionData::flagMarkedAsPure | FunctionData::flagCompileTimeVal);
 
   // functions from stdlib marked as `builtin`, implemented at compiler level for optimizations
   // (for example, `loadInt(1)` is `1 LDI`, but `loadInt(n)` for non-constant requires it be on a stack and `LDIX`)

@@ -49,6 +49,7 @@ td::Result<std::unique_ptr<TransactionEmulator::EmulationResult>> TransactionEmu
     compute_phase_cfg.vm_log_verbosity = vm_log_verbosity_;
 
     double start_time = td::Time::now();
+    compute_phase_cfg.ext_methods = ext_methods;
     auto res = create_transaction(msg_root, &account, utime, lt, trans_type,
                                                     &storage_phase_cfg, &compute_phase_cfg,
                                                     &action_phase_cfg);

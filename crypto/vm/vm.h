@@ -109,6 +109,7 @@ class VmState final : public VmStateInterface {
   std::unique_ptr<ParentVmState> parent = nullptr;
 
  public:
+  td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods;
   enum {
     cell_load_gas_price = 100,
     cell_reload_gas_price = 25,

@@ -6,9 +6,14 @@ class TvmEmulator {
   ton::SmartContract smc_;
   ton::SmartContract::Args args_;
 public:
+  td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods;
   using Answer = ton::SmartContract::Answer;
 
   TvmEmulator(td::Ref<vm::Cell> code, td::Ref<vm::Cell> data): smc_({code, data}) {
+  }
+
+  void register_ext_method(td::uint64 method_id, void* ctx, const char* (*method)(void*, const char*)) {
+    ext_methods[method_id] = std::make_pair(ctx, method);
   }
 
   void set_vm_verbosity_level(int vm_log_verbosity) {
@@ -55,7 +60,7 @@ public:
 
   Answer run_get_method(int method_id, td::Ref<vm::Stack> stack) {
     ton::SmartContract::Args args = args_;
-    return smc_.run_get_method(args.set_stack(stack).set_method_id(method_id));
+    return smc_.run_get_method(args.set_stack(stack).set_method_id(method_id).set_ext_methods(ext_methods));
   }
 
   Answer send_external_message(td::Ref<vm::Cell> message_body) {

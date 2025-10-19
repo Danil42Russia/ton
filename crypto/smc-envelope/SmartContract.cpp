@@ -233,7 +233,8 @@ std::shared_ptr<const block::Config> try_fetch_config_from_c7(td::Ref<vm::Tuple>
 SmartContract::Answer run_smartcont(SmartContract::State state, td::Ref<vm::Stack> stack, td::Ref<vm::Tuple> c7,
                                     vm::GasLimits gas, bool ignore_chksig, td::Ref<vm::Cell> libraries,
                                     int vm_log_verbosity, bool debug_enabled,
-                                    std::shared_ptr<const block::Config> config) {
+                                    std::shared_ptr<const block::Config> config,
+                                    td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods) {
   auto gas_credit = gas.gas_credit;
   vm::init_vm(debug_enabled).ensure();
   vm::DictionaryBase::get_empty_dictionary();
@@ -268,6 +269,7 @@ SmartContract::Answer run_smartcont(SmartContract::State state, td::Ref<vm::Stac
   }
   int global_version = config ? config->get_global_version() : SUPPORTED_VERSION;
   vm::VmState vm{state.code, global_version, std::move(stack), gas, 1, state.data, log};
+  vm.ext_methods = ext_methods;
   vm.set_c7(std::move(c7));
   vm.set_chksig_always_succeed(ignore_chksig);
   if (!libraries.is_null()) {
@@ -371,7 +373,7 @@ SmartContract::Answer SmartContract::run_method(Args args) {
   auto res =
       run_smartcont(get_state(), args.stack.unwrap(), args.c7.unwrap(), args.limits.unwrap(), args.ignore_chksig,
                     args.libraries ? args.libraries.unwrap().get_root_cell() : td::Ref<vm::Cell>{},
-                    args.vm_log_verbosity_level, args.debug_enabled, args.config ? args.config.value() : nullptr);
+                    args.vm_log_verbosity_level, args.debug_enabled, args.config ? args.config.value() : nullptr, args.ext_methods);
   state_ = res.new_state;
   return res;
 }
@@ -393,7 +395,7 @@ SmartContract::Answer SmartContract::run_get_method(Args args) const {
   args.stack.value().write().push_smallint(args.method_id.unwrap());
   return run_smartcont(get_state(), args.stack.unwrap(), args.c7.unwrap(), args.limits.unwrap(), args.ignore_chksig,
                        args.libraries ? args.libraries.unwrap().get_root_cell() : td::Ref<vm::Cell>{},
-                       args.vm_log_verbosity_level, args.debug_enabled, args.config ? args.config.value() : nullptr);
+                       args.vm_log_verbosity_level, args.debug_enabled, args.config ? args.config.value() : nullptr, args.ext_methods);
 }
 
 SmartContract::Answer SmartContract::run_get_method(td::Slice method, Args args) const {
