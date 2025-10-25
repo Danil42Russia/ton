@@ -1263,10 +1263,10 @@ static AsmOp compile_debug_print_to_string(std::vector<VarDescr>&, std::vector<V
 static AsmOp compile_any_object_to_tuple(std::vector<VarDescr>& res, std::vector<VarDescr>& args, SrcLocation loc) {
   tolk_assert(res.size() == 1);
   int n = static_cast<int>(args.size());
-  if (n > 15) {
-    throw ParseError(loc, "call overflow, exceeds 15 elements");
+  if (n > 255) {
+    throw ParseError(loc, "call overflow, exceeds 255 elements");
   }
-  return exec_op(loc, std::to_string(args.size()) + " TUPLE", n, 1);
+  return exec_op(loc, std::to_string(args.size()) + " PUSHINT " + "TUPLEVAR", n, 1);
 }
 
 // fun sizeof<T>(anything: T): int;        // (returns the number of stack elements)
