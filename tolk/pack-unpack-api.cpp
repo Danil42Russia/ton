@@ -15,6 +15,8 @@
     along with TON Blockchain Library.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "pack-unpack-api.h"
+
+#include "ast.h"
 #include "generics-helpers.h"
 #include "lazy-helpers.h"
 #include "type-system.h"
@@ -253,6 +255,8 @@ std::vector<var_idx_t> generate_T_toCell(FunctionPtr called_f, CodeBlob& code, S
   FunctionPtr f_beginCell = lookup_function("beginCell");
   FunctionPtr f_endCell = lookup_function("builder.endCell");
   std::vector rvect_builder = code.create_var(TypeDataBuilder::create(), loc, "b");
+
+  insert_call_debug_info(loc, ast_function_call, code, "T.toCell", CallKind::EnterInlinedFunction);
   code.emplace_back(loc, Op::_Call, rvect_builder, std::vector<var_idx_t>{}, f_beginCell);
 
   PackContext ctx(code, loc, rvect_builder, args[1]);
@@ -260,6 +264,7 @@ std::vector<var_idx_t> generate_T_toCell(FunctionPtr called_f, CodeBlob& code, S
 
   std::vector rvect_cell = code.create_tmp_var(TypeDataCell::create(), loc, "(cell)");
   code.emplace_back(loc, Op::_Call, rvect_cell, std::move(rvect_builder), f_endCell);
+  insert_call_debug_info(loc, ast_function_call, code, "T.toCell", CallKind::LeaveInlinedFunction);
 
   return rvect_cell;
 }
@@ -267,14 +272,18 @@ std::vector<var_idx_t> generate_T_toCell(FunctionPtr called_f, CodeBlob& code, S
 // fun builder.storeAny<T>(mutate self, v: T, options: PackOptions = {}): self
 std::vector<var_idx_t> generate_builder_storeAny(FunctionPtr called_f, CodeBlob& code, SrcLocation loc, const std::vector<std::vector<var_idx_t>>& args) {
   TypePtr typeT = called_f->substitutedTs->typeT_at(0);
+  insert_call_debug_info(loc, ast_function_call, code, "builder.storeAny", CallKind::EnterInlinedFunction);
   PackContext ctx(code, loc, args[0], args[2]);   // mutate this builder
   ctx.generate_pack_any(typeT, std::vector(args[1]));
+  insert_call_debug_info(loc, ast_function_call, code, "builder.storeAny", CallKind::LeaveInlinedFunction);
 
   return args[0];  // return mutated builder
 }
 
 // fun T.fromSlice(rawSlice: slice, options: UnpackOptions): T
 std::vector<var_idx_t> generate_T_fromSlice(FunctionPtr called_f, CodeBlob& code, SrcLocation loc, const std::vector<std::vector<var_idx_t>>& args) {
+  insert_call_debug_info(loc, ast_function_call, code, "T.fromSlice", CallKind::EnterInlinedFunction);
+
   std::vector slice_copy = code.create_var(TypeDataSlice::create(), loc, "s");
   code.emplace_back(loc, Op::_Let, slice_copy, args[0]);
 
@@ -286,6 +295,7 @@ std::vector<var_idx_t> generate_T_fromSlice(FunctionPtr called_f, CodeBlob& code
   if (!estimate_serialization_size(typeT).is_unpredictable_infinity()) {
     ctx.assertEndIfOption();
   }
+  insert_call_debug_info(loc, ast_function_call, code, "T.fromSlice", CallKind::LeaveInlinedFunction);
   return rvect_struct;
 }
 
@@ -305,6 +315,8 @@ std::vector<var_idx_t> generate_slice_loadAny(FunctionPtr called_f, CodeBlob& co
 // fun T.fromCell(packedCell: cell, options: UnpackOptions): T
 // fun Cell<T>.load(self, options: UnpackOptions): T
 std::vector<var_idx_t> generate_T_fromCell(FunctionPtr called_f, CodeBlob& code, SrcLocation loc, const std::vector<std::vector<var_idx_t>>& args) {
+  insert_call_debug_info(loc, ast_function_call, code, "T.fromCell", CallKind::EnterInlinedFunction);
+
   TypePtr typeT = called_f->substitutedTs->typeT_at(0);
   FunctionPtr f_beginParse = lookup_function("cell.beginParse");
   std::vector ir_slice = code.create_var(TypeDataSlice::create(), loc, "s");
@@ -318,14 +330,17 @@ std::vector<var_idx_t> generate_T_fromCell(FunctionPtr called_f, CodeBlob& code,
   if (!estimate_serialization_size(typeT).is_unpredictable_infinity()) {
     ctx.assertEndIfOption();
   }
+  insert_call_debug_info(loc, ast_function_call, code, "T.fromCell", CallKind::LeaveInlinedFunction);
   return rvect_struct;
 }
 
 // fun slice.skipAny<T>(mutate self, options: UnpackOptions): self
 std::vector<var_idx_t> generate_slice_skipAny(FunctionPtr called_f, CodeBlob& code, SrcLocation loc, const std::vector<std::vector<var_idx_t>>& args) {
   TypePtr typeT = called_f->substitutedTs->typeT_at(0);
+  insert_call_debug_info(loc, ast_function_call, code, "slice.skipAny", CallKind::EnterInlinedFunction);
   UnpackContext ctx(code, loc, args[0], args[1]);    // mutate this slice
   ctx.generate_skip_any(typeT);
+  insert_call_debug_info(loc, ast_function_call, code, "slice.skipAny", CallKind::LeaveInlinedFunction);
 
   return args[0];  // return mutated slice
 }
@@ -392,6 +407,8 @@ std::vector<var_idx_t> generate_lazy_struct_to_cell(CodeBlob& code, SrcLocation 
   StructPtr original_struct = loaded_state->original_struct;
   StructPtr hidden_struct = loaded_state->hidden_struct;
 
+  insert_call_debug_info(loc, ast_function_call, code, "T.toCell", CallKind::EnterInlinedFunction);
+
   std::vector rvect_builder = code.create_var(TypeDataBuilder::create(), loc, "b");
   code.emplace_back(loc, Op::_Call, rvect_builder, std::vector<var_idx_t>{}, lookup_function("beginCell"));
 
@@ -425,6 +442,8 @@ std::vector<var_idx_t> generate_lazy_struct_to_cell(CodeBlob& code, SrcLocation 
 
   std::vector rvect_cell = code.create_tmp_var(TypeDataCell::create(), loc, "(cell)");
   code.emplace_back(loc, Op::_Call, rvect_cell, std::move(rvect_builder), lookup_function("builder.endCell"));
+
+  insert_call_debug_info(loc, ast_function_call, code, "T.toCell", CallKind::LeaveInlinedFunction);
 
   return rvect_cell;
 }

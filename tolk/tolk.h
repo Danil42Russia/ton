@@ -21,6 +21,8 @@
 #include "symtable.h"
 #include "crypto/common/refint.h"
 #include "td/utils/Status.h"
+
+#include <ast.h>
 #include <functional>
 #include <vector>
 #include <string>
@@ -53,15 +55,17 @@ struct TmpVar {
   TypePtr v_type;     // get_width_on_stack() is 1
   std::string name;   // "x" for vars originated from user sources; "x.0" for tensor components; empty for implicitly created tmp vars
   SrcLocation loc;    // location of var declaration in sources or where a tmp var was originated
+  TypePtr parent_type = nullptr; // type of "stack" in "stack.USlot1"
 #ifdef TOLK_DEBUG
   const char* desc = nullptr; // "origin" of tmp var, for debug output like `'15 (binary-op) '16 (glob-var)`
 #endif
 
-  TmpVar(var_idx_t ir_idx, TypePtr v_type, std::string name, SrcLocation loc)
+  TmpVar(var_idx_t ir_idx, TypePtr v_type, std::string name, SrcLocation loc, TypePtr parent_type = nullptr)
     : ir_idx(ir_idx)
     , v_type(v_type)
     , name(std::move(name))
-    , loc(loc) {
+    , loc(loc)
+    , parent_type(parent_type) {
   }
 
   void show_as_stack_comment(std::ostream& os) const;
@@ -264,6 +268,114 @@ class ListIterator {
 
 struct Stack;
 
+struct SourceMapLocation {
+  std::string file;
+  int offset{};
+  long line{};
+  long line_offset{};
+  long col{};
+  long length{};
+};
+
+struct SourceMapVariable {
+  /**
+   * All information about variable.
+   */
+  TmpVar data;
+
+  /**
+   * If a variable has a constant value (rarely) it will be placed here.
+   */
+  std::string constant_value;
+};
+
+struct SourceMapEntry {
+  /**
+   * Unique ID of this entry.
+   */
+  size_t idx{};
+
+  /**
+   * If true, entry represents code before first statement.
+   */
+  bool is_entry{};
+  /**
+   * If true, entry represents code after last statement.
+   */
+  bool is_leave{};
+  bool is_after_function_call{};
+  std::string entry_or_leave_name{};
+
+  /**
+   * If true, entry represent assert throw call.
+   */
+  bool is_assert_throw{};
+
+  /**
+   * Human-readable description of current entry.
+   */
+  std::string descr{};
+
+  /**
+   * Location of this entry.
+   */
+  SourceMapLocation loc{};
+
+  /**
+   * Variables available in current position.
+   */
+  std::vector<SourceMapVariable> vars;
+
+  /**
+   * Name oj outer function which contains this code.
+   */
+  std::string func_name;
+
+  /**
+   * If a function was inlined, this field will contain the name
+   * of the function where the code was inlined.
+   */
+  std::string inlined_to_func_name;
+
+  /**
+   * Whenever outer function is inlined and how.
+   */
+  FunctionInlineMode func_inline_mode;
+
+  /**
+   * Marks the first instruction of inlined function.
+   */
+  bool before_inlined_function_call{false};
+
+  /**
+   * Marks the last instruction of inlined function.
+   */
+  bool after_inlined_function_call{false};
+
+  /**
+   * The AST node for which this entry was generated.
+   */
+  std::string ast_kind;
+
+#ifdef TOLK_DEBUG
+  /**
+   * String representation of `Op` for which this entry was generated.
+   */
+  std::string opcode;
+#endif
+};
+
+struct SourceMapGlobalVariable {
+  /**
+   * Name of this global variable.
+   */
+  std::string name;
+  /**
+   * Human-readable type pf this global variable.
+   */
+  std::string type;
+};
+
 struct Op {
   enum OpKind {
     _Nop,
@@ -284,6 +396,7 @@ struct Op {
     _Again,
     _TryCatch,
     _SliceConst,
+    _DebugInfo,
   };
   OpKind cl;
   enum { _Disabled = 1, _NoReturn = 2, _Impure = 4, _ArgOrderAlreadyEqualsAsm = 8 };
@@ -298,6 +411,12 @@ struct Op {
   std::unique_ptr<Op> block0, block1;
   td::RefInt256 int_const;
   std::string str_const;
+
+  /**
+   * Current ID of source map entry, see <code>insert_debug_info</code>.
+   */
+  size_t source_map_entry_idx{0};
+
   Op(SrcLocation loc, OpKind cl) : cl(cl), flags(0), loc(loc) {
   }
   Op(SrcLocation loc, OpKind cl, const std::vector<var_idx_t>& left)
@@ -597,6 +716,7 @@ struct AsmOpList {
   }
   const_idx_t register_const(td::RefInt256 new_const);
   td::RefInt256 get_const(const_idx_t idx);
+  std::optional<std::tuple<TmpVar, std::string>> get_var(const std::pair<var_idx_t, const_idx_t>& idx_pair) const;
   void show_var_ext(std::ostream& os, std::pair<var_idx_t, const_idx_t> idx_pair) const;
   void adjust_last() {
     if (list_.back().is_nop()) {
@@ -1069,6 +1189,18 @@ struct LazyVarRefAtCodegen {
     : var_ref(var_ref), var_state(var_state) {}
 };
 
+enum class CallKind {
+  BeforeFunctionCall,
+  AfterFunctionCall,
+  LeaveFunction,
+  EnterInlinedFunction,
+  LeaveInlinedFunction,
+};
+
+void insert_call_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, const std:: string& called_name, CallKind call_kind);
+void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool is_leave = false, std::string descr = "");
+void insert_debug_info(AnyV v, CodeBlob& code);
+
 // CachedConstValueAtCodegen is used for a map [some_const => '5]
 struct CachedConstValueAtCodegen {
   GlobalConstPtr const_ref;
@@ -1108,7 +1240,7 @@ struct CodeBlob {
 #endif
     return res;
   }
-  std::vector<var_idx_t> create_var(TypePtr var_type, SrcLocation loc, std::string name);
+  std::vector<var_idx_t> create_var(TypePtr var_type, SrcLocation loc, std::string name, TypePtr parent_type = nullptr);
   std::vector<var_idx_t> create_tmp_var(TypePtr var_type, SrcLocation loc, const char* desc) {
     std::vector<var_idx_t> ir_idx = create_var(var_type, loc, {});
 #ifdef TOLK_DEBUG
@@ -1163,7 +1295,7 @@ void pipeline_cleanup();
  *
  */
 
-int tolk_proceed(const std::string &entrypoint_filename);
+int tolk_proceed(const std::string &entrypoint_filename, std::ostream& source_map_out);
 
 }  // namespace tolk
 
