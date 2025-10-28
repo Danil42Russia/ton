@@ -241,12 +241,16 @@ td::Result<td::Ref<vm::Cell>> compile_asm(td::Slice asm_code) {
   return vm::std_boc_deserialize(std::move(boc.data));
 }
 
-td::Result<CompiledProgramOutput> compile_asm_program(std::string&& program_code, const std::string& fift_dir) {
+td::Result<CompiledProgramOutput> compile_asm_program(std::string&& program_code, const std::string& fift_dir, bool debug) {
   std::string main_fif;
-  main_fif.reserve(program_code.size() + 100);
+  main_fif.reserve(program_code.size() + 200);
   main_fif.append(program_code.data(), program_code.size());
   main_fif.append(R"( dup hashB B>X      $>B "hex" B>file)");   // write codeHashHex to a file
   main_fif.append(R"(     boc>B B>base64 $>B "boc" B>file)");   // write codeBoc64 to a file
+
+  if (debug) {
+    main_fif.append(R"(     boc>B B>base64 $>B "debug" B>file)");   // write debug marks dictionary to a file
+  }
 
   std::stringstream fift_output_stream;
   TRY_RESULT(source_lookup, create_source_lookup(std::move(main_fif), true, true, false, false, false, false, false, fift_dir));
@@ -255,21 +259,35 @@ td::Result<CompiledProgramOutput> compile_asm_program(std::string&& program_code
   TRY_RESULT(boc, res.read_file("boc"));
   TRY_RESULT(hex, res.read_file("hex"));
 
+  FileLoader::File debug_file;
+  if (debug) {
+    TRY_RESULT(debug_file_, res.read_file("debug"));
+    debug_file = debug_file_;
+  }
+
   return CompiledProgramOutput{
     std::move(program_code),
     std::move(boc.data),
     std::move(hex.data),
+    std::move(debug_file.data),
   };
 }
 
 td::Result<CompiledProgramOutput> compile_asm_program_with_custom_loader(std::string&& program_code,
                                                                          load_file_data_t load_file_data,
-                                                                         const std::string& fift_dir) {
+                                                                         const std::string& fift_dir, bool debug) {
   std::string main_fif;
   main_fif.reserve(program_code.size() + 100);
   main_fif.append(program_code.data(), program_code.size());
+  if (debug) {
+    main_fif.append(R"( swap )");
+  }
   main_fif.append(R"( dup hashB B>X      $>B "hex" B>file)");   // write codeHashHex to a file
   main_fif.append(R"(     boc>B B>base64 $>B "boc" B>file)");   // write codeBoc64 to a file
+
+  if (debug) {
+    main_fif.append(R"(     boc>B B>base64 $>B "debug" B>file)");   // write debug marks dictionary to a file
+  }
 
   std::stringstream fift_output_stream;
   TRY_RESULT(source_lookup, create_source_lookup_with_custom_loader(std::move(main_fif), load_file_data, fift_dir));
@@ -278,10 +296,17 @@ td::Result<CompiledProgramOutput> compile_asm_program_with_custom_loader(std::st
   TRY_RESULT(boc, res.read_file("boc"));
   TRY_RESULT(hex, res.read_file("hex"));
 
+  FileLoader::File debug_file;
+  if (debug) {
+    TRY_RESULT(debug_file_, res.read_file("debug"));
+    debug_file = debug_file_;
+  }
+
   return CompiledProgramOutput{
     std::move(program_code),
     std::move(boc.data),
     std::move(hex.data),
+    std::move(debug_file.data),
   };
 }
 

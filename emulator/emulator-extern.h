@@ -205,6 +205,7 @@ EMULATOR_EXPORT const char *transaction_emulator_sbs_get_stack(void *tvm_emulato
  * @return Base64 encoded c7 control register value at the current step
  */
 EMULATOR_EXPORT const char *transaction_emulator_sbs_get_c7(void *tvm_emulator);
+EMULATOR_EXPORT const char *transaction_emulator_sbs_get_control_register(void *tvm_emulator, int idx);
 
 /**
  * @brief Get position ad code for the current step of a <b>transaction emulation</b>
@@ -412,6 +413,7 @@ EMULATOR_EXPORT const char *tvm_emulator_sbs_get_stack(void *tvm_emulator);
  * @return Base64 encoded c7 control register value at the current step
  */
 EMULATOR_EXPORT const char *tvm_emulator_sbs_get_c7(void *tvm_emulator);
+EMULATOR_EXPORT const char *tvm_emulator_sbs_get_control_register(void *tvm_emulator, int idx);
 
 /**
  * @brief Get position ad code for the current step of a <b>get method emulation</b>

@@ -355,6 +355,24 @@ const char *emulator_vm_get_c7(const vm::VmState &vm) {
   return strdup(result_stack_boc.move_as_ok().c_str());
 }
 
+const char *emulator_vm_get_control_register(const vm::VmState &vm, int idx) {
+  vm::FakeVmStateLimits fstate(3500);  // limit recursive (de)serialization calls
+  vm::VmStateInterface::Guard guard(&fstate);
+
+  vm::StackEntry reg_entry = vm.get(idx);
+
+  vm::CellBuilder reg_cb;
+  if (!reg_entry.serialize(reg_cb)) {
+    ERROR_RESPONSE(PSTRING() << "Couldn't serialize c" << idx);
+  }
+  auto result_stack_boc = cell_to_boc_b64(reg_cb.finalize());
+  if (result_stack_boc.is_error()) {
+    ERROR_RESPONSE(PSTRING() << "Couldn't serialize c" << idx << " cell: " << result_stack_boc.move_as_error().to_string());
+  }
+
+  return strdup(result_stack_boc.move_as_ok().c_str());
+}
+
 const char *emulator_vm_get_code_pos(const vm::VmState &vm) {
   const auto code = vm.get_code();
   if (code.is_null()) {
@@ -380,6 +398,12 @@ const char *transaction_emulator_sbs_get_c7(void *tvm_emulator) {
   const auto emulator = static_cast<emulator::TransactionEmulator *>(tvm_emulator);
   const auto &vm = emulator->get_vm();
   return emulator_vm_get_c7(vm);
+}
+
+const char *transaction_emulator_sbs_get_control_register(void *tvm_emulator, int idx) {
+  const auto emulator = static_cast<emulator::TransactionEmulator *>(tvm_emulator);
+  const auto &vm = emulator->get_vm();
+  return emulator_vm_get_control_register(vm, idx);
 }
 
 const char *transaction_emulator_sbs_get_code_pos(void *tvm_emulator) {
@@ -782,6 +806,12 @@ const char *tvm_emulator_sbs_get_c7(void *tvm_emulator) {
   const auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
   const auto &vm = emulator->get_vm();
   return emulator_vm_get_c7(vm);
+}
+
+const char *tvm_emulator_sbs_get_control_register(void *tvm_emulator, int idx) {
+  const auto emulator = static_cast<emulator::TvmEmulator *>(tvm_emulator);
+  const auto &vm = emulator->get_vm();
+  return emulator_vm_get_control_register(vm, idx);
 }
 
 const char* tvm_emulator_sbs_get_code_pos(void *tvm_emulator) {

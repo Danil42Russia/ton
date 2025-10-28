@@ -235,7 +235,7 @@ std::shared_ptr<const block::Config> try_fetch_config_from_c7(td::Ref<vm::Tuple>
 vm::VmState init_vm(SmartContract::State state, td::Ref<vm::Stack> stack, td::Ref<vm::Tuple> c7, vm::GasLimits gas,
                     bool ignore_chksig, td::Ref<vm::Cell> libraries, int vm_log_verbosity, bool debug_enabled,
                     std::shared_ptr<const block::Config> config, td::LogInterface* logger,
-                    td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods) {
+                    const td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>>& ext_methods) {
   vm::init_vm(debug_enabled).ensure();
   vm::DictionaryBase::get_empty_dictionary();
 
@@ -260,7 +260,7 @@ vm::VmState init_vm(SmartContract::State state, td::Ref<vm::Stack> stack, td::Re
   }
   int global_version = config ? config->get_global_version() : 0;
   vm::VmState vm{state.code, global_version, std::move(stack), gas, 1, state.data, log};
-  vm.ext_methods = std::move(ext_methods);
+  vm.ext_methods = ext_methods;
   vm.set_c7(std::move(c7));
   vm.set_chksig_always_succeed(ignore_chksig);
   if (!libraries.is_null()) {
@@ -314,10 +314,10 @@ SmartContract::Answer get_vm_result(const vm::VmState& vm, SmartContract::State 
 int setup_vm(SmartContract::State state, td::Ref<vm::Stack> stack, td::Ref<vm::Tuple> c7, vm::GasLimits gas,
              bool ignore_chksig, td::Ref<vm::Cell> libraries, int vm_log_verbosity, bool debug_enabled,
              std::shared_ptr<const block::Config> config, std::unique_ptr<vm::VmState>& vm,
-             std::unique_ptr<SmartContract::Logger>& logger, td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>> ext_methods) {
+             std::unique_ptr<SmartContract::Logger>& logger, const td::BTreeMap<td::uint64, std::pair<void*, const char* (*)(void*, const char*)>>& ext_methods) {
   logger = std::make_unique<SmartContract::Logger>();
   logger->clear();
-  auto vm_ = init_vm(state, stack, c7, gas, ignore_chksig, libraries, vm_log_verbosity, debug_enabled, config, logger.get(), std::move(ext_methods));
+  auto vm_ = init_vm(state, stack, c7, gas, ignore_chksig, libraries, vm_log_verbosity, debug_enabled, config, logger.get(), ext_methods);
   if (vm_.get_code().is_null() || stack.is_null()) {
     return static_cast<int>(vm::Excno::fatal);  // no ~ for unhandled exceptions
   }
