@@ -865,6 +865,7 @@ struct S_MultipleConstructors final : ISerializer {
     }
 
     if (else_block) {
+      insert_debug_info(else_block->v_body->loc, ast_match_arm, code);
       std::vector else_result = pre_compile_expr(else_block->v_body, code);
       options.save_match_result_on_arm_end(code, loc, else_block, std::move(else_result), ir_result);
     } else {

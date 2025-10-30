@@ -51,6 +51,7 @@ static void tolk_cleanup() {
 
   G.symtable.clear();
   G.persistent_mem.clear();
+  G.source_map.clear();
 
   pipeline_cleanup();
 }

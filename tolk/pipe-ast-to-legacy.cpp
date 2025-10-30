@@ -1826,6 +1826,7 @@ static std::vector<var_idx_t> process_braced_expression(V<ast_braced_expression>
       process_any_statement(item, code);
     }
   }
+  insert_debug_info(v->loc, ast_block_statement, code, false, "");
   return transition_to_target_type(std::move(implicit_rvect), code, target_type, v);
 }
 
@@ -2177,6 +2178,8 @@ static void process_block_statement(V<ast_block_statement> v, CodeBlob& code) {
   stmt_before_immediate_return = is_toplevel_block && does_f_return_nothing && inlining_doesnt_prevent ? last_stmt : nullptr;
   process_any_statement(last_stmt, code);
   stmt_before_immediate_return = backup;
+
+  insert_debug_info(v->loc, ast_block_statement, code, false, "");
 }
 
 static void process_assert_statement(V<ast_assert_statement> v, CodeBlob& code) {
