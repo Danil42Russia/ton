@@ -40,8 +40,30 @@ int exec_dummy_debug(VmState* st, int args) {
   return 0;
 }
 
-int exec_extcall(VmState* st, int args) {
-  int arg = (args & 0xff);
+std::string dump_extcall(CellSlice& cs, unsigned _, int pfx_bits) {
+  unsigned bits = pfx_bits + 32;
+  if (!cs.have(bits)) {
+    return "";
+  }
+  cs.advance(pfx_bits);
+  const auto arg = cs.fetch_ulong(32);
+  std::ostringstream os;
+  os << "EXTCALL " << arg;
+  return os.str();
+}
+
+int compute_len_extcall(const CellSlice& cs, unsigned _, int pfx_bits) {
+  unsigned bits = pfx_bits + 32;
+  return cs.have(bits) ? bits : 0;
+}
+
+int exec_extcall(VmState* st, CellSlice& cs, unsigned _, [[maybe_unused]] int pfx_bits) {
+  if (!cs.have(pfx_bits + 32)) {
+    throw VmError{Excno::inv_opcode, "not enough data bits for a EXTCALL instruction"};
+  }
+
+  cs.advance(pfx_bits);
+  const auto arg = cs.fetch_ulong(32);
   VM_LOG(st) << "execute EXTCALL " << arg;
 
   if (!st->ext_methods.contains(arg)) {
@@ -188,7 +210,7 @@ int exec_dump_string(VmState* st) {
 
 void register_debug_ops(OpcodeTable& cp0) {
   using namespace std::placeholders;
-  cp0.insert(OpcodeInstr::mkfixed(0xFC00, 16, 8, instr::dump_1sr("EXTCALL"), exec_extcall));
+  cp0.insert(OpcodeInstr::mkext(0xFC00, 16, 0, dump_extcall, exec_extcall, compute_len_extcall));
   if (!vm_debug_enabled) {
     cp0.insert(OpcodeInstr::mkfixedrange(0xfe00, 0xfef0, 16, 8, instr::dump_1c_and(0xff, "DEBUG "), exec_dummy_debug))
         .insert(OpcodeInstr::mkext(0xfef, 12, 4, dump_dummy_debug_str, exec_dummy_debug_str, compute_len_debug_str));
