@@ -702,5 +702,6 @@ public:
 // --------------------------------------------
 
 void type_system_init();
+void type_system_cleanup();
 
 } // namespace tolk

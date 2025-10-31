@@ -71,6 +71,11 @@ public:
     map_ptr_to_type_id[self] = type_id;
     return type_id;
   }
+
+  static void cleanup() {
+    last_type_id = 128;
+    map_ptr_to_type_id.clear();
+  }
 };
 
 
@@ -90,6 +95,10 @@ TypePtr TypeDataCoins::singleton;
 TypePtr TypeDataUnknown::singleton;
 TypePtr TypeDataNever::singleton;
 TypePtr TypeDataVoid::singleton;
+
+void type_system_cleanup() {
+  TypeIdCalculation::cleanup();
+}
 
 void type_system_init() {
   TypeDataInt::singleton = new TypeDataInt;

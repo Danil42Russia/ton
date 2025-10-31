@@ -27,6 +27,7 @@
 #include "tolk-version.h"
 #include "compiler-state.h"
 #include "git.h"
+#include "type-system.h"
 #include "td/utils/JsonBuilder.h"
 #include "fift/utils.h"
 #include "td/utils/Status.h"
@@ -53,6 +54,7 @@ static void tolk_cleanup() {
   G.persistent_mem.clear();
   G.source_map.clear();
 
+  type_system_cleanup();
   pipeline_cleanup();
 }
 
