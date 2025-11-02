@@ -180,11 +180,11 @@ td::Result<fift::SourceLookup> create_source_lookup_with_custom_loader(std::stri
 }
 
 td::Result<fift::SourceLookup> run_fift(fift::SourceLookup source_lookup, std::ostream *stream,
-                                        bool preload_fift = true, std::vector<std::string> args = {}) {
+                                        bool preload_fift = true, bool enable_debug = false, std::vector<std::string> args = {}) {
   fift::Fift::Config config;
   config.source_lookup = std::move(source_lookup);
   fift::init_words_common(config.dictionary);
-  fift::init_words_vm(config.dictionary);
+  fift::init_words_vm(config.dictionary, enable_debug);
   fift::init_words_ton(config.dictionary);
   config.error_stream = stream;
   config.output_stream = stream;
@@ -206,7 +206,7 @@ td::Result<fift::SourceLookup> run_fift(fift::SourceLookup source_lookup, std::o
 td::Result<FiftOutput> mem_run_fift(std::string source, std::vector<std::string> args, std::string fift_dir) {
   std::stringstream ss;
   TRY_RESULT(source_lookup, create_source_lookup(std::move(source), true, true, true, true, true, true, true, fift_dir));
-  TRY_RESULT_ASSIGN(source_lookup, run_fift(std::move(source_lookup), &ss, true, std::move(args)));
+  TRY_RESULT_ASSIGN(source_lookup, run_fift(std::move(source_lookup), &ss, true, false, std::move(args)));
   FiftOutput res;
   res.source_lookup = std::move(source_lookup);
   res.output = ss.str();
@@ -214,7 +214,7 @@ td::Result<FiftOutput> mem_run_fift(std::string source, std::vector<std::string>
 }
 td::Result<FiftOutput> mem_run_fift(SourceLookup source_lookup, std::vector<std::string> args) {
   std::stringstream ss;
-  TRY_RESULT_ASSIGN(source_lookup, run_fift(std::move(source_lookup), &ss, true, std::move(args)));
+  TRY_RESULT_ASSIGN(source_lookup, run_fift(std::move(source_lookup), &ss, true, false, std::move(args)));
   FiftOutput res;
   res.source_lookup = std::move(source_lookup);
   res.output = ss.str();
@@ -291,7 +291,7 @@ td::Result<CompiledProgramOutput> compile_asm_program_with_custom_loader(std::st
 
   std::stringstream fift_output_stream;
   TRY_RESULT(source_lookup, create_source_lookup_with_custom_loader(std::move(main_fif), load_file_data, fift_dir));
-  TRY_RESULT(res, run_fift(std::move(source_lookup), &fift_output_stream));
+  TRY_RESULT(res, run_fift(std::move(source_lookup), &fift_output_stream, true, debug));
 
   TRY_RESULT(boc, res.read_file("boc"));
   TRY_RESULT(hex, res.read_file("hex"));

@@ -254,6 +254,10 @@ const char *emulate_with_emulator(void* em, const char* libs, const char* accoun
     td::log_interface = &logger;
     SET_VERBOSITY_LEVEL(verbosity_DEBUG);
 
+    // DEBUG instruction outputs values in stderr, redirect this output to return it to user
+    std::ostringstream errs;
+    std::streambuf* old_err = std::cerr.rdbuf(errs.rdbuf());
+
     auto decoded_params_res = decode_transaction_emulation_params(params);
     if (decoded_params_res.is_error()) {
         return strdup(R"({"fail":true,"message":"Can't decode other params"})");
@@ -288,12 +292,16 @@ const char *emulate_with_emulator(void* em, const char* libs, const char* accoun
       result = transaction_emulator_emulate_transaction(em, account, message);
     }
 
+    std::string debug_logs = errs.str();
+    std::cerr.rdbuf(old_err);
+
     const char* output = nullptr;
     {
         td::JsonBuilder jb;
         auto json_obj = jb.enter_object();
         json_obj("output", td::JsonRaw(td::Slice(result)));
         json_obj("logs", logger.get_string());
+        json_obj("debug_logs", debug_logs);
         json_obj.leave();
         output = strdup(jb.string_builder().as_cslice().c_str());
     }
@@ -382,6 +390,10 @@ void *create_tvm_emulator(const char *params) {
 }
 
 const char *run_get_method(void* tvm, const char *params, const char* stack, const char* config) {
+    // DEBUG instruction outputs values in stderr, redirect this output to return it to user
+    std::ostringstream errs;
+    std::streambuf* old_err = std::cerr.rdbuf(errs.rdbuf());
+
     auto decoded_params_res = decode_get_method_params(params);
     if (decoded_params_res.is_error()) {
         return strdup(R"({"fail":true,"message":"Can't decode params"})");
@@ -401,12 +413,16 @@ const char *run_get_method(void* tvm, const char *params, const char* stack, con
 
     auto res = tvm_emulator_run_get_method(tvm, decoded_params.method_id, stack);
 
+    std::string debug_logs = errs.str();
+    std::cerr.rdbuf(old_err);
+
     const char* output = nullptr;
     {
         td::JsonBuilder jb;
         auto json_obj = jb.enter_object();
         json_obj("output", td::JsonRaw(td::Slice(res)));
         json_obj("logs", static_cast<StringLog*>(td::log_interface)->get_string());
+        json_obj("debug_logs", debug_logs);
         json_obj.leave();
         output = strdup(jb.string_builder().as_cslice().c_str());
     }
