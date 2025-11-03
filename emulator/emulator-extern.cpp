@@ -256,9 +256,12 @@ const char *transaction_emulator_sbs_emulate_transaction(void *transaction_emula
     ERROR_RESPONSE(PSTRING() << "Emulate transaction failed: " << result.move_as_error());
   }
 
+  const bool skipped = !result.move_as_ok();
+
   td::JsonBuilder jb;
   auto json_obj = jb.enter_object();
   json_obj("success", td::JsonTrue());
+  json_obj("skipped", td::JsonBool(skipped));
   json_obj.leave();
   return strdup(jb.string_builder().as_cslice().c_str());
 }

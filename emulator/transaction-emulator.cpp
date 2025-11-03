@@ -122,7 +122,11 @@ td::Result<bool> TransactionEmulator::prepare_emulate_transaction_debug(
       return res.move_as_error_prefix("cannot run message on account ");
     }
 
-    return res;
+    if (trans->compute_phase->skip_reason != block::ComputePhase::sk_none) {
+      return false;
+    }
+
+    return true;
 }
 
 td::Result<TransactionEmulator::EmulationSuccess> TransactionEmulator::emulate_transaction(block::Account&& account, td::Ref<vm::Cell> original_trans) {
