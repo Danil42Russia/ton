@@ -2446,8 +2446,6 @@ static void convert_function_body_to_CodeBlob(FunctionPtr fun_ref, FunctionBodyC
   blob->in_var_cnt = blob->var_cnt;
   tolk_assert(blob->var_cnt == total_arg_width);
 
-  insert_debug_info(v_fun_decl->get_identifier()->loc, ast_function_declaration, *blob);
-
   if (fun_ref->name == "onInternalMessage") {
     handle_onInternalMessage_codegen_start(fun_ref, rvect_import, *blob, fun_ref->loc);
   }
