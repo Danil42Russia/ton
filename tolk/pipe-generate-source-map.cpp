@@ -48,9 +48,9 @@ void pipeline_generate_source_map(std::ostream& debug_out) {
       ob("name", glob_var->name);
       ob("type", glob_var->declared_type->as_human_readable());
 
-      const auto global_loc = glob_var->loc;
+      const auto global_loc = glob_var->ident_anchor->range;
       if (const SrcFile* src_file = global_loc.get_src_file(); src_file != nullptr) {
-        const auto pos = src_file->convert_offset(global_loc.get_char_offset());
+        const auto pos = src_file->convert_offset(global_loc.get_start_offset());
 
         td::JsonBuilder locb;
         auto loc_builder = locb.enter_object();

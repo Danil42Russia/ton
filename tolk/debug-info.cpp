@@ -5,12 +5,12 @@
 
 namespace tolk {
 
-void insert_call_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, const std:: string& called_name, CallKind call_kind) {
+void insert_call_debug_info(AnyV origin, ASTNodeKind kind, CodeBlob& code, const std:: string& called_name, CallKind call_kind) {
   if (!G.settings.collect_source_map) {
     return;
   }
 
-  insert_debug_info(loc, kind, code);
+  insert_debug_info(origin, kind, code);
   if (G.settings.collect_source_map && G.source_map.size() > 0) {
     auto& last_entry = G.source_map.at(G.source_map.size() - 1);
     last_entry.entry_or_leave_name = called_name;
@@ -32,7 +32,7 @@ void insert_call_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, c
   }
 }
 
-void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool is_leave, std::string descr) {
+void insert_debug_info(AnyV origin, ASTNodeKind kind, CodeBlob& code, bool is_leave, std::string descr) {
   if (!G.settings.collect_source_map) {
     return;
   }
@@ -48,7 +48,7 @@ void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool i
   const Op* last_op_ptr = last_op != code._vector_of_ops.rend() ? *last_op : nullptr;
 #endif
 
-  auto& op = code.emplace_back(loc, Op::_DebugInfo);
+  auto& op = code.emplace_back(origin, Op::_DebugInfo);
   op.source_map_entry_idx = G.source_map.size();
 
   auto info = SourceMapEntry{};
@@ -66,11 +66,11 @@ void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool i
 
   info.ast_kind = ASTStringifier::ast_node_kind_to_string(kind);
 
-  if (const SrcFile* src_file = loc.get_src_file(); src_file != nullptr) {
-    const auto& pos = src_file->convert_offset(loc.get_char_offset());
+  if (const SrcFile* src_file = origin->range.get_src_file(); src_file != nullptr) {
+    const auto& pos = src_file->convert_offset(origin->range.get_start_offset());
 
     info.loc.file = src_file->realpath;
-    info.loc.offset = loc.get_char_offset();
+    info.loc.offset = origin->range.get_start_offset();
     info.loc.line = pos.line_no;
     info.loc.line_offset = is_leave;
     info.loc.col = pos.char_no - 1;
@@ -78,9 +78,10 @@ void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool i
   }
 
   info.func_name = code.fun_ref->name;
-  if (code.name != info.func_name) {
+  std::string code_name = code.fift_name(code.fun_ref);
+  if (code_name != info.func_name) {
     // If a function was inlined, `code.name` will contain the name of the function we are inlining into
-    info.inlined_to_func_name = code.name;
+    info.inlined_to_func_name = code_name;
   }
   info.func_inline_mode = code.fun_ref->inline_mode;
 
@@ -88,7 +89,7 @@ void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool i
 }
 
 void insert_debug_info(AnyV v, CodeBlob& code) {
-  insert_debug_info(v->loc, v->kind, code, 0, "");
+  insert_debug_info(v, v->kind, code, 0, "");
 }
 
 }

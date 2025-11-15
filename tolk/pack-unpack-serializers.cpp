@@ -768,14 +768,14 @@ struct S_Either final : ISerializer {
       }
     }
     tolk_assert(options.match_blocks.size() == 2);
-    insert_debug_info(loc, ast_match_expression, code);
+    insert_debug_info(origin, ast_match_expression, code);
     std::vector ir_result = code.create_tmp_var(options.match_expr_type, origin, "(match-expression)");
     std::vector ir_is_right = ctx->loadUint(1, "(eitherBit)");
     Op& if_op = code.emplace_back(origin, Op::_If, std::move(ir_is_right));
     {
       code.push_set_cur(if_op.block0);
       const LazyMatchOptions::MatchBlock* m_block = options.find_match_block(t_right);
-      insert_debug_info(m_block->v_body->loc, ast_match_arm, code);
+      insert_debug_info(m_block->v_body, ast_match_arm, code);
       std::vector ith_result = pre_compile_expr(m_block->v_body, code);
       options.save_match_result_on_arm_end(code, origin, m_block, std::move(ith_result), ir_result);
       code.close_pop_cur(origin);
@@ -783,7 +783,7 @@ struct S_Either final : ISerializer {
     {
       code.push_set_cur(if_op.block1);
       const LazyMatchOptions::MatchBlock* m_block = options.find_match_block(t_left);
-      insert_debug_info(m_block->v_body->loc, ast_match_arm, code);
+      insert_debug_info(m_block->v_body, ast_match_arm, code);
       std::vector ith_result = pre_compile_expr(m_block->v_body, code);
       options.save_match_result_on_arm_end(code, origin, m_block, std::move(ith_result), ir_result);
       code.close_pop_cur(origin);
@@ -897,7 +897,7 @@ struct S_MultipleConstructors final : ISerializer {
       const LazyMatchOptions::MatchBlock* m_block = options.find_match_block(t_union->variants[i]);
       StructData::PackOpcode opcode = opcodes[opcodes_order_mapping[i]];
       std::vector args = { ctx->ir_slice0, code.create_int(origin, opcode.pack_prefix, "(pack-prefix)"), code.create_int(origin, opcode.prefix_len, "(prefix-len)") };
-      insert_debug_info(m_block->arm_variant_node->loc, ast_match_arm, code);
+      insert_debug_info(m_block->arm_variant_node, ast_match_arm, code);
       code.emplace_back(origin, Op::_Call, std::vector{ctx->ir_slice0, ir_prefix_eq[0]}, std::move(args), f_tryStripPrefix);
       Op& if_op = code.emplace_back(origin, Op::_If, ir_prefix_eq);
       code.push_set_cur(if_op.block0);
@@ -908,7 +908,7 @@ struct S_MultipleConstructors final : ISerializer {
     }
 
     if (else_block) {
-      insert_debug_info(else_block->v_body->loc, ast_match_arm, code);
+      insert_debug_info(else_block->v_body, ast_match_arm, code);
       std::vector else_result = pre_compile_expr(else_block->v_body, code);
       options.save_match_result_on_arm_end(code, origin, else_block, std::move(else_result), ir_result);
     } else {
@@ -1053,7 +1053,7 @@ struct S_CustomStruct final : ISerializer {
     std::vector ir_result = code.create_tmp_var(options.match_expr_type, origin, "(match-expression)");
     std::vector ir_prefix_eq = code.create_tmp_var(TypeDataInt::create(), origin, "(prefix-eq)");
 
-    insert_debug_info(loc, ast_match_arm, code);
+    insert_debug_info(origin, ast_match_arm, code);
 
     StructData::PackOpcode opcode = struct_ref->opcode;
     if (opcode.exists()) {    // it's `match` over a struct (makes sense for a struct with prefix and `else` branch)

@@ -55,7 +55,6 @@ static void tolk_cleanup() {
   G.source_map.clear();
 
   type_system_cleanup();
-  pipeline_cleanup();
 }
 
 static td::Result<std::string> tolk_compile_internal(char *config_json) {

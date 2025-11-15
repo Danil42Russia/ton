@@ -290,7 +290,7 @@ bool Op::generate_code_step(Stack& stack) {
 
     // Append opcode to a list
     // if (const auto list_size = stack.o.list_.size(); list_size >= 0) {
-      stack.o.insert(stack.o.list_.size(), loc, ops.str());
+      stack.o.insert(stack.o.list_.size(), origin, ops.str());
     // }
 
     if (source_map_entry_idx < G.source_map.size()) {

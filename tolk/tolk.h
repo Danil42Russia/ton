@@ -16,6 +16,7 @@
 */
 #pragma once
 
+#include "ast.h"
 #include "compilation-errors.h"
 #include "crypto/common/refint.h"
 #include <functional>
@@ -49,10 +50,11 @@ struct TmpVar {
   const char* purpose = nullptr; // "purpose" of tmp var, for debug output like `'15 (binary-op) '16 (glob-var)`
 #endif
 
-  TmpVar(var_idx_t ir_idx, TypePtr v_type, std::string name)
+  TmpVar(var_idx_t ir_idx, TypePtr v_type, std::string name, TypePtr parent_type = nullptr)
     : ir_idx(ir_idx)
     , v_type(v_type)
-    , name(std::move(name)) {
+    , name(std::move(name))
+    , parent_type(parent_type) {
   }
 
   void show_as_stack_comment(std::ostream& os) const;
@@ -1191,8 +1193,8 @@ enum class CallKind {
   LeaveInlinedFunction,
 };
 
-void insert_call_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, const std:: string& called_name, CallKind call_kind);
-void insert_debug_info(SrcLocation loc, ASTNodeKind kind, CodeBlob& code, bool is_leave = false, std::string descr = "");
+void insert_call_debug_info(AnyV origin, ASTNodeKind kind, CodeBlob& code, const std:: string& called_name, CallKind call_kind);
+void insert_debug_info(AnyV origin, ASTNodeKind kind, CodeBlob& code, bool is_leave = false, std::string descr = "");
 void insert_debug_info(AnyV v, CodeBlob& code);
 
 // CachedConstValueAtCodegen is used for a map [some_const => '5]
@@ -1272,8 +1274,6 @@ AsmOp exec_arg_op(AnyV origin, std::string op, long long arg, int args, int retv
 AsmOp exec_arg_op(AnyV origin, std::string op, td::RefInt256 arg, int args, int retv = 1);
 AsmOp exec_arg2_op(AnyV origin, std::string op, long long imm1, long long imm2, int args, int retv = 1);
 AsmOp push_const(AnyV origin, td::RefInt256 x);
-
-void pipeline_cleanup();
 
 /*
  *

@@ -30,8 +30,6 @@
 
 namespace tolk {
 
-void pipeline_cleanup();
-
 void pipeline_discover_and_parse_sources(const std::string& stdlib_filename, const std::string& entrypoint_filename);
 
 void pipeline_register_global_symbols();

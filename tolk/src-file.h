@@ -131,6 +131,14 @@ public:
     return file_id == 0 || file_id == other.file_id;
   }
 
+  int get_start_offset() const {
+    return start_offset;
+  }
+
+  int get_end_offset() const {
+    return end_offset;
+  }
+
   const SrcFile* get_src_file() const;
   std::string stringify_start_location(bool output_char_no) const;
 
