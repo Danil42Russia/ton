@@ -2646,6 +2646,7 @@ int Transaction::try_action_send_msg(const vm::CellSlice& cs0, ActionPhase& ap, 
   if (!tlb::type_unpack_cell(act_rec.out_msg, block::gen::t_MessageRelaxed_Any, msg)) {
     return -1;
   }
+  LOG(DEBUG) << "process send message " << act_rec.out_msg.get()->get_hash().to_hex();
   if (!block::tlb::validate_message_relaxed_libs(act_rec.out_msg)) {
     LOG(DEBUG) << "outbound message has invalid libs in StateInit";
     return -1;
@@ -3059,6 +3060,8 @@ int Transaction::try_action_send_msg(const vm::CellSlice& cs0, ActionPhase& ap, 
   ap.tot_msg_bits += sstat.bits + new_msg_bits;
   ap.tot_msg_cells += sstat.cells + 1;
 
+  LOG(INFO) << "remaining balance " << ap.remaining_balance.to_str();
+
   return 0;
 }
 
@@ -3076,6 +3079,7 @@ int Transaction::try_action_reserve_currency(vm::CellSlice& cs, ActionPhase& ap,
   if (!tlb::unpack_exact(cs, rec)) {
     return -1;
   }
+  LOG(DEBUG) << "process raw reserve with mode " << rec.mode;
   if ((rec.mode & 16) && cfg.bounce_on_fail_enabled) {
     rec.mode &= ~16;
     ap.need_bounce_on_fail = true;
