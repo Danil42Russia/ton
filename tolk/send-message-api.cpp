@@ -87,7 +87,7 @@ struct IR_AutoDeployAddress {
 
 // fun createMessage<TBody>(options: CreateMessageOptions<TBody>): OutMessage
 std::vector<var_idx_t> generate_createMessage(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& ir_options) {
-  insert_debug_info(origin, ast_function_call, code);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   TypePtr bodyT = called_f->substitutedTs->typeT_at(0);
   StructPtr s_Options = lookup_global_symbol("CreateMessageOptions")->try_as<StructPtr>();
   StructPtr s_AutoDeployAddress = lookup_global_symbol("AutoDeployAddress")->try_as<StructPtr>();
@@ -407,12 +407,13 @@ std::vector<var_idx_t> generate_createMessage(FunctionPtr called_f, CodeBlob& co
 
   std::vector ir_cell = code.create_tmp_var(TypeDataCell::create(), origin, "(msg-cell)");
   code.emplace_back(origin, Op::_Call, ir_cell, std::move(ir_builder), f_endCell);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_cell;
 }
 
 // fun createExternalLogMessage<TBody>(options: CreateExternalLogMessageOptions<TBody>): OutMessage
 std::vector<var_idx_t> generate_createExternalLogMessage(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& args) {
-  insert_debug_info(origin, ast_function_call, code);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   TypePtr bodyT = called_f->substitutedTs->typeT_at(0);
   StructPtr s_Options = lookup_global_symbol("CreateExternalLogMessageOptions")->try_as<StructPtr>();
   StructPtr s_ExtOutLogBucket = lookup_global_symbol("ExtOutLogBucket")->try_as<StructPtr>();
@@ -545,12 +546,13 @@ std::vector<var_idx_t> generate_createExternalLogMessage(FunctionPtr called_f, C
 
   std::vector ir_cell = code.create_tmp_var(TypeDataCell::create(), origin, "(msg-cell)");
   code.emplace_back(origin, Op::_Call, ir_cell, std::move(ir_builder), f_endCell);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_cell;
 }
 
 // fun address.buildSameAddressInAnotherShard(self, options: AddressShardingOptions): builder
 std::vector<var_idx_t> generate_address_buildInAnotherShard(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& args) {
-  insert_debug_info(origin, ast_function_call, code);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   std::vector ir_shard_options = args[1];
   tolk_assert(ir_shard_options.size() == 2);
 
@@ -579,20 +581,23 @@ std::vector<var_idx_t> generate_address_buildInAnotherShard(FunctionPtr called_f
   code.emplace_back(origin, Op::_Call, ir_tailA, std::vector{args[0][0], ir_restLenA[0]}, lookup_function("slice.getLastBits"));
   code.emplace_back(origin, Op::_Call, ir_builder, std::vector{ir_builder[0], ir_tailA[0]}, lookup_function("builder.storeSlice"));
 
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_builder;
 }
 
 // fun address.calculateSameAddressInAnotherShard(self, options: AddressShardingOptions): address
 std::vector<var_idx_t> generate_address_calculateInAnotherShard(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& args) {
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   // it's "build address" + BTOS (until a deprecated "build" function removed)
   std::vector ir_builder = generate_address_buildInAnotherShard(called_f, code, origin, args);
   code.emplace_back(origin, Op::_Call, ir_builder, ir_builder, lookup_function("builder.toSlice"));
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_builder;
 }
 
 // fun AutoDeployAddress.buildAddress(self): builder
 std::vector<var_idx_t> generate_AutoDeployAddress_buildAddress(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& ir_options) {
-  insert_debug_info(origin, ast_function_call, code);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   IR_AutoDeployAddress ir_self(code, origin, ir_options[0]);
 
   std::vector ir_builder = code.create_tmp_var(TypeDataSlice::create(), origin, "(addr-b)");
@@ -667,20 +672,23 @@ std::vector<var_idx_t> generate_AutoDeployAddress_buildAddress(FunctionPtr calle
     code.close_pop_cur(origin);
   }
 
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_builder;
 }
 
 // fun AutoDeployAddress.calculateAddress(self): address
 std::vector<var_idx_t> generate_AutoDeployAddress_calculateAddress(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& ir_options) {
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   // it's "build address" + BTOS (until a deprecated "build" function removed)
   std::vector ir_builder = generate_AutoDeployAddress_buildAddress(called_f, code, origin, ir_options);
   code.emplace_back(origin, Op::_Call, ir_builder, ir_builder, lookup_function("builder.toSlice"));
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_builder;
 }
 
 // fun AutoDeployAddress.addressMatches(self, addr: address): bool
 std::vector<var_idx_t> generate_AutoDeployAddress_addressMatches(FunctionPtr called_f, CodeBlob& code, AnyV origin, const std::vector<std::vector<var_idx_t>>& ir_self_and_addr) {
-  insert_debug_info(origin, ast_function_call, code);
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
   IR_AutoDeployAddress ir_self(code, origin, ir_self_and_addr[0]);
 
   // at first, calculate stateInitHash = (hash of StateInit cell would be, but without constructing a cell)
@@ -750,6 +758,7 @@ std::vector<var_idx_t> generate_AutoDeployAddress_addressMatches(FunctionPtr cal
 
   std::vector ir_bool_result = code.create_tmp_var(TypeDataBool::create(), origin, "(is-addr-result)");
   code.emplace_back(origin, Op::_Call, ir_bool_result, std::vector{ir_eq_hash[0], ir_eq_wc[0]}, lookup_function("_&_"));
+  insert_call_debug_info(origin, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   return ir_bool_result;
 }
 

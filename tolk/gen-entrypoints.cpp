@@ -98,6 +98,7 @@ void handle_onInternalMessage_codegen_start(FunctionPtr f_onInternalMessage, con
       std::vector ir_bodySlice(rvect_params.end() - 1, rvect_params.end());
       if (f_onBouncedMessage->is_inlined_in_place()) {
         gen_inline_fun_call_in_place(code, TypeDataVoid::create(), f_onBouncedMessage->ident_anchor, f_onBouncedMessage, nullptr, true, {ir_bodySlice});
+        insert_debug_info(f_onBouncedMessage->ident_anchor, ast_block_statement, code);
       } else {
         insert_call_debug_info(f_onBouncedMessage->ident_anchor, ast_function_call, code, f_onBouncedMessage->name, CallKind::BeforeFunctionCall);
         Op& op_call = code.emplace_back(origin, Op::_Call, std::vector<var_idx_t>{}, ir_bodySlice, f_onBouncedMessage);

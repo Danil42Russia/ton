@@ -1456,14 +1456,14 @@ static std::vector<var_idx_t> process_lazy_operator(V<ast_lazy_operator> v, Code
 
   FunctionPtr called_f = v_call->fun_maybe;
   if (called_f->is_code_function()) {     // `lazy loadStorage()` is allowed, it contains just `return ...`, inline it here
-    insert_call_debug_info(v, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
+    // insert_call_debug_info(v, ast_function_call, code, called_f->name, CallKind::EnterInlinedFunction);
     auto f_body = called_f->ast_root->as<ast_function_declaration>()->get_body()->as<ast_block_statement>();
     tolk_assert(f_body->size() == 1 && f_body->get_item(0)->kind == ast_return_statement);
     auto f_returns = f_body->get_item(0)->as<ast_return_statement>();
     v_call = f_returns->get_return_value()->try_as<ast_function_call>();
     tolk_assert(v_call && v_call->fun_maybe && v_call->fun_maybe->is_builtin());
     called_f = v_call->fun_maybe;
-    insert_call_debug_info(v, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
+    // insert_call_debug_info(v, ast_function_call, code, called_f->name, CallKind::LeaveInlinedFunction);
   }
 
   // only predefined built-in functions are allowed for lazy loading
@@ -1740,10 +1740,10 @@ static std::vector<var_idx_t> process_function_call(V<ast_function_call> v, Code
     std::vector tfunc = pre_compile_expr(v->get_callee(), code, nullptr);
     tolk_assert(tfunc.size() == 1);
     args_vars.push_back(tfunc[0]);
-    insert_call_debug_info(v, ast_function_call, code, fun_ref->name, CallKind::BeforeFunctionCall);
+    insert_call_debug_info(v, ast_function_call, code, "anon_func", CallKind::BeforeFunctionCall);
     std::vector rvect = code.create_tmp_var(v->inferred_type, v, "(call-ind)");
     Op& op = code.emplace_back(v, Op::_CallInd, rvect, std::move(args_vars));
-    insert_call_debug_info(v, ast_function_call, code, fun_ref->name, CallKind::AfterFunctionCall);
+    insert_call_debug_info(v, ast_function_call, code, "anon_func", CallKind::AfterFunctionCall);
     op.set_impure_flag();
     return transition_to_target_type(std::move(rvect), code, target_type, v);
   }
