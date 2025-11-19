@@ -141,6 +141,7 @@ class LValContext {
     // for 1-slot globals int/cell/slice, assigning to them is just SETGLOB
     // same for tensors, if they are fully rewritten in an expression: `gTensor = (5,6)`
     void apply_fully_rewrite(CodeBlob& code, AnyV origin) const {
+      insert_debug_info(origin, origin->kind, code);
       Op& op = code.emplace_back(origin, Op::_SetGlob, std::vector<var_idx_t>{}, lval_ir_idx, glob_ref);
       op.set_impure_flag();
     }
@@ -157,6 +158,7 @@ class LValContext {
         }
       }
 
+      insert_debug_info(origin, origin->kind, code);
       Op& op = code.emplace_back(origin, Op::_SetGlob, std::vector<var_idx_t>{}, local_ir_idx, glob_ref);
       op.set_impure_flag();
     }
@@ -190,6 +192,7 @@ class LValContext {
       tolk_assert(field_ir_idx.size() == lval_ir_idx.size());
 
       vars_modification_watcher.trigger_callbacks(field_ir_idx, origin);
+      insert_debug_info(origin, origin->kind, code);
       code.emplace_back(origin, Op::_Let, field_ir_idx, lval_ir_idx);
       local_lval.after_let(std::move(field_ir_idx), code, origin);
     }
@@ -554,6 +557,8 @@ static std::vector<var_idx_t> pre_compile_let(CodeBlob& code, AnyExprV lhs, AnyE
     std::vector ir_left = pre_compile_expr(lhs, code, nullptr);    // effectively, local_var->ir_idx
     vars_modification_watcher.trigger_callbacks(ir_left, lhs);
     std::vector ir_right = pre_compile_expr(rhs, code, lhs->inferred_type);
+
+    insert_debug_info(lhs, lhs->kind, code);
     code.emplace_back(lhs, Op::_Let, std::move(ir_left), ir_right);
     return ir_right;
   }
@@ -562,6 +567,7 @@ static std::vector<var_idx_t> pre_compile_let(CodeBlob& code, AnyExprV lhs, AnyE
   std::vector ir_left = pre_compile_expr(lhs, code, nullptr, &local_lval);
   vars_modification_watcher.trigger_callbacks(ir_left, lhs);
   std::vector ir_right = pre_compile_expr(rhs, code, lhs->inferred_type);
+  insert_debug_info(lhs, lhs->kind, code);
   code.emplace_back(lhs, Op::_Let, ir_left, ir_right);
   local_lval.after_let(std::move(ir_left), code, lhs);
   return ir_right;
@@ -1571,19 +1577,17 @@ static std::vector<var_idx_t> process_match_expression(V<ast_match_expression> v
       if (has_type_arm) {     // `v is int`, `v is slice`, etc. (type before =>)
         TypePtr cmp_type = v_ith_arm->pattern_type_node->resolved_type;
         tolk_assert(!cmp_type->unwrap_alias()->try_as<TypeDataUnion>());  // `match` over `int|slice` is a type checker error
-        insert_call_debug_info(v_ith_arm, ast_function_call, code, "is_type_check", CallKind::EnterInlinedFunction);
+        insert_debug_info(v_ith_arm, ast_function_call, code);
         eq_ith_ir_idx = pre_compile_is_type(code, subject_type, cmp_type, ir_subj, v_ith_arm, "(arm-cond-eq)");
-        insert_call_debug_info(v_ith_arm, ast_function_call, code, "is_type_check", CallKind::LeaveInlinedFunction);
       } else {                // `v == 0`, `v == Role.User`, etc. (expr before =>)
         std::vector ith_ir_idx = pre_compile_expr(v_ith_arm->get_pattern_expr(), code);
         tolk_assert(ir_subj.size() == 1 && ith_ir_idx.size() == 1);
         eq_ith_ir_idx = code.create_tmp_var(TypeDataBool::create(), v_ith_arm, "(arm-cond-eq)");
-        insert_call_debug_info(v_ith_arm, ast_function_call, code, "is_pattern_expr", CallKind::EnterInlinedFunction);
+        insert_debug_info(v_ith_arm, ast_function_call, code);
         code.emplace_back(v_ith_arm, Op::_Call, eq_ith_ir_idx, std::vector{ir_subj[0], ith_ir_idx[0]}, eq_fn);
       }
       if_op = &code.emplace_back(v_ith_arm, Op::_If, std::move(eq_ith_ir_idx));
       code.push_set_cur(if_op->block0);
-      insert_call_debug_info(v_ith_arm, ast_function_call, code, "is_pattern_expr", CallKind::LeaveInlinedFunction);
     }
 
     if (v->is_statement()) {
