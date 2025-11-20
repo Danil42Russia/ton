@@ -529,8 +529,10 @@ static std::vector<var_idx_t> pre_compile_let(CodeBlob& code, AnyExprV lhs, AnyE
   if (lhs->kind == ast_bracket_tuple && rhs->kind == ast_bracket_tuple) {
     // note: there are no type transitions (adding nullability flag, etc.), since only 1-slot elements allowed in tuples
     LValContext local_lval;
+    insert_debug_info(lhs, lhs->kind, code);
     std::vector ir_left = pre_compile_tensor(code, lhs->as<ast_bracket_tuple>()->get_items(), &local_lval);
     vars_modification_watcher.trigger_callbacks(ir_left, lhs);
+    insert_debug_info(rhs, rhs->kind, code);
     std::vector rvect = pre_compile_tensor(code, rhs->as<ast_bracket_tuple>()->get_items());
     code.emplace_back(lhs, Op::_Let, ir_left, rvect);
     local_lval.after_let(std::move(ir_left), code, lhs);
@@ -541,8 +543,10 @@ static std::vector<var_idx_t> pre_compile_let(CodeBlob& code, AnyExprV lhs, AnyE
   // [lhs] = rhs; it's un-tuple to N left vars
   if (lhs->kind == ast_bracket_tuple) {
     LValContext local_lval;
+    insert_debug_info(lhs, lhs->kind, code);
     std::vector ir_left = pre_compile_tensor(code, lhs->as<ast_bracket_tuple>()->get_items(), &local_lval);
     vars_modification_watcher.trigger_callbacks(ir_left, lhs);
+    insert_debug_info(rhs, rhs->kind, code);
     std::vector ir_right = pre_compile_expr(rhs, code, nullptr);
     const TypeDataBrackets* inferred_tuple = rhs->inferred_type->unwrap_alias()->try_as<TypeDataBrackets>();
     std::vector<TypePtr> types_list = inferred_tuple->items;
@@ -554,20 +558,24 @@ static std::vector<var_idx_t> pre_compile_let(CodeBlob& code, AnyExprV lhs, AnyE
   }
   // small optimization: `var x = rhs` or `local_var = rhs` (90% cases), LValContext not needed actually
   if (lhs->kind == ast_local_var_lhs || (lhs->kind == ast_reference && lhs->as<ast_reference>()->sym->try_as<LocalVarPtr>())) {
+    insert_debug_info(lhs, lhs->kind, code);
     std::vector ir_left = pre_compile_expr(lhs, code, nullptr);    // effectively, local_var->ir_idx
     vars_modification_watcher.trigger_callbacks(ir_left, lhs);
+    insert_debug_info(rhs, rhs->kind, code);
     std::vector ir_right = pre_compile_expr(rhs, code, lhs->inferred_type);
 
-    insert_debug_info(lhs, lhs->kind, code);
+    // insert_debug_info(lhs, lhs->kind, code);
     code.emplace_back(lhs, Op::_Let, std::move(ir_left), ir_right);
     return ir_right;
   }
   // lhs = rhs
   LValContext local_lval;
+  insert_debug_info(lhs, lhs->kind, code);
   std::vector ir_left = pre_compile_expr(lhs, code, nullptr, &local_lval);
   vars_modification_watcher.trigger_callbacks(ir_left, lhs);
+  insert_debug_info(rhs, rhs->kind, code);
   std::vector ir_right = pre_compile_expr(rhs, code, lhs->inferred_type);
-  insert_debug_info(lhs, lhs->kind, code);
+  // insert_debug_info(lhs, lhs->kind, code);
   code.emplace_back(lhs, Op::_Let, ir_left, ir_right);
   local_lval.after_let(std::move(ir_left), code, lhs);
   return ir_right;
@@ -1285,8 +1293,6 @@ static std::vector<var_idx_t> process_reference(V<ast_reference> v, CodeBlob& co
 }
 
 static std::vector<var_idx_t> process_assignment(V<ast_assign> v, CodeBlob& code, TypePtr target_type) {
-  insert_debug_info(v, v->kind, code);
-
   AnyExprV lhs = v->get_lhs();
   AnyExprV rhs = v->get_rhs();
 
