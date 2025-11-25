@@ -260,9 +260,11 @@ struct Stack;
 struct SourceMapLocation {
   std::string file;
   int offset{};
+  int end_offset{};
   long line{};
-  long line_offset{};
   long col{};
+  long end_line{};
+  long end_col{};
   long length{};
 };
 

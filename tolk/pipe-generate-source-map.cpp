@@ -25,22 +25,6 @@ void pipeline_generate_source_map(std::ostream& debug_out) {
   {
     td::JsonBuilder jsonb;
     auto array_builder = jsonb.enter_array();
-    for (const auto& file : G.all_src_files) {
-      auto value_builder = array_builder.enter_value();
-      auto ob = value_builder.enter_object();
-
-      ob("path", file->realpath);
-      ob("is_stdlib", td::JsonBool(file->is_stdlib_file));
-      ob("content", file->text);
-    }
-    array_builder.leave();
-
-    root_builder_obj("files", td::JsonRaw(jsonb.string_builder().as_cslice()));
-  }
-
-  {
-    td::JsonBuilder jsonb;
-    auto array_builder = jsonb.enter_array();
     for (const auto& glob_var : G.all_global_vars) {
       auto value_builder = array_builder.enter_value();
       auto ob = value_builder.enter_object();
@@ -114,8 +98,8 @@ void pipeline_generate_source_map(std::ostream& debug_out) {
         loc_builder("file", entry.loc.file);
         loc_builder("line", static_cast<td::int64>(entry.loc.line - 1));
         loc_builder("column", static_cast<td::int64>(entry.loc.col - 1));
-        loc_builder("end_line", static_cast<td::int64>(0));
-        loc_builder("end_column", static_cast<td::int64>(0));
+        loc_builder("end_line", static_cast<td::int64>(entry.loc.end_line - 1));
+        loc_builder("end_column", static_cast<td::int64>(entry.loc.end_col - 1));
         loc_builder("length", static_cast<td::int64>(entry.loc.length));
         loc_builder.leave();
 

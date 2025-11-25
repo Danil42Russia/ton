@@ -67,14 +67,19 @@ void insert_debug_info(AnyV origin, ASTNodeKind kind, CodeBlob& code, bool is_le
   info.ast_kind = ASTStringifier::ast_node_kind_to_string(kind);
 
   if (const SrcFile* src_file = origin->range.get_src_file(); src_file != nullptr) {
-    const auto& pos = src_file->convert_offset(origin->range.get_start_offset());
+    const int start_offset = origin->range.get_start_offset();
+    const int end_offset = origin->range.get_end_offset();
+    const auto& start_pos = src_file->convert_offset(start_offset);
+    const auto& end_pos = src_file->convert_offset(end_offset);
 
     info.loc.file = src_file->realpath;
-    info.loc.offset = origin->range.get_start_offset();
-    info.loc.line = pos.line_no;
-    info.loc.line_offset = is_leave;
-    info.loc.col = pos.char_no - 1;
-    info.loc.length = 1; // Once we have the actual length of node, we should use it here
+    info.loc.offset = start_offset;
+    info.loc.end_offset = end_offset;
+    info.loc.line = start_pos.line_no;
+    info.loc.col = start_pos.char_no - 1;
+    info.loc.end_line = end_pos.line_no;
+    info.loc.end_col = end_pos.char_no - 1;
+    info.loc.length = end_offset - start_offset;
   }
 
   info.func_name = code.fun_ref->name;
