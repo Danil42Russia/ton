@@ -258,7 +258,7 @@ vm::VmState init_vm(SmartContract::State state, td::Ref<vm::Stack> stack, td::Re
     stack->dump(os, 2);
     LOG(DEBUG) << "VM stack:\n" << os.str();
   }
-  int global_version = config ? config->get_global_version() : 0;
+  int global_version = config ? config->get_global_version() : ton::SUPPORTED_VERSION;
   vm::VmState vm{state.code, global_version, std::move(stack), gas, 1, state.data, log};
   vm.ext_methods = ext_methods;
   vm.set_c7(std::move(c7));
