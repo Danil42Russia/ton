@@ -2485,6 +2485,7 @@ static void convert_function_body_to_CodeBlob(FunctionPtr fun_ref, FunctionBodyC
 
   if (fun_ref->name == "onInternalMessage") {
     handle_onInternalMessage_codegen_start(fun_ref, rvect_import, *blob, fun_ref->ident_anchor);
+    insert_call_debug_info(fun_ref->ident_anchor, ast_function_call, *blob, fun_ref->name, CallKind::BeforeFunctionCall);
   }
 
   process_block_statement(v_body, *blob);
