@@ -166,7 +166,7 @@ static CompilerSettings::FsReadCallback wrap_wasm_read_callback(WasmFsReadCallba
 
 extern "C" {
 
-const char* version() {
+const char* tolk_version() {
   td::JsonBuilder version_json = td::JsonBuilder();
   auto obj = version_json.enter_object();
   obj("tolkVersion", TOLK_VERSION);
